@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Expense Tracker</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#6366f1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Expenses" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1 id="ttl">Home</h1>
+        <small id="dt"></small>
+      </div>
+      <button id="install" hidden>⬇ Install</button>
+    </header>
+    <div id="offline" hidden>
+      📡 You're offline, but your data is safe on this device.
+    </div>
+    <main>
+      <div id="mn" class="rn">
+        <button id="mPrev" aria-label="Previous month">‹</button
+        ><b id="mLab"></b><button id="mNext" aria-label="Next month">›</button>
+      </div>
+      <section id="t-home">
+        <div class="card hero2">
+          <small>Balance this month</small>
+          <div id="bal"></div>
+          <div class="two">
+            <span>▼ Income<b id="hI"></b></span
+            ><span>▲ Spent<b id="hE"></b></span>
+          </div>
+          <div id="hBud"></div>
+        </div>
+        <h3>Top spending</h3>
+        <div class="card" id="hTop"></div>
+        <h3>Recent</h3>
+        <ul id="hRec" class="list"></ul>
+        <p id="hEmpty" class="empty" hidden>
+          No transactions yet. Tap ＋ to add your first one.
+        </p>
+      </section>
+      <section id="t-tx" hidden>
+        <div class="fl">
+          <input id="q" type="search" placeholder="🔍 Search" /><select id="fT">
+            <option value="all">All</option>
+            <option value="exp">Expenses</option>
+            <option value="inc">Income</option>
+          </select>
+        </div>
+        <div id="txl"></div>
+        <p id="tEmpty" class="empty" hidden>No transactions found.</p>
+      </section>
+      <section id="t-bud" hidden>
+        <div class="card">
+          <b>Monthly budget</b
+          ><input
+            id="oB"
+            type="number"
+            inputmode="decimal"
+            min="0"
+            step="any"
+            placeholder="Set overall monthly budget"
+          />
+          <div id="oBar"></div>
+        </div>
+        <h3>Category budgets</h3>
+        <ul id="bl" class="list"></ul>
+        <button id="addC" class="pri wide">+ New category</button>
+        <h3>Income categories</h3>
+        <ul id="il" class="list"></ul>
+      </section>
+      <section id="t-rep" hidden>
+        <div class="stats">
+          <span><b id="pS"></b>Spent</span><span><b id="pA"></b>Avg / day</span
+          ><span><b id="pV"></b>Saved</span>
+        </div>
+        <h3>Spending by category</h3>
+        <div class="card">
+          <div class="donut" id="dn">
+            <div class="hole"><b id="dnT"></b><small>spent</small></div>
+          </div>
+          <div id="dnL"></div>
+        </div>
+        <h3>Daily spending</h3>
+        <div class="card"><div id="chart"></div></div>
+        <h3>Last 6 months</h3>
+        <div class="card">
+          <div id="trend"></div>
+          <div class="lg"><span>🟢 Income</span><span>🟣 Spent</span></div>
+        </div>
+      </section>
+      <section id="t-set" hidden>
+        <div class="card">
+          <div class="set">
+            <span>Theme</span
+            ><select id="thSel">
+              <option value="auto">Auto</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
+          <div class="set">
+            <span>Currency symbol</span><input id="cur" maxlength="3" />
+          </div>
+          <div class="btns">
+            <button id="xCsv">⬆ Export CSV</button
+            ><button id="xBk">⬆ Backup</button
+            ><button id="iBk">⬇ Restore</button
+            ><button id="clrT" class="danger">🗑 Delete all transactions</button
+            ><input id="file" type="file" accept=".json" hidden />
+          </div>
+          <p class="sub">
+            All data is stored only on this device. Export a backup now and
+            then.
+          </p>
+        </div>
+      </section>
+    </main>
+    <button id="fab" aria-label="Add transaction">＋</button>
+    <nav id="nav">
+      <button data-t="home"><span>🏠</span>Home</button
+      ><button data-t="tx"><span>🧾</span>Activity</button
+      ><button data-t="bud"><span>🎯</span>Budgets</button
+      ><button data-t="rep"><span>📊</span>Reports</button
+      ><button data-t="set"><span>⚙️</span>Settings</button>
+    </nav>
+    <div id="toast"><span id="tm"></span><button id="undo">Undo</button></div>
+    <dialog id="dx">
+      <form id="fx" method="dialog">
+        <div class="seg" id="xT">
+          <button type="button" data-t="exp">Expense</button
+          ><button type="button" data-t="inc">Income</button>
+        </div>
+        <label
+          >Amount<input
+            id="xA"
+            type="number"
+            inputmode="decimal"
+            step="any"
+            min="0.01"
+            required
+            placeholder="0"
+        /></label>
+        <label>Category</label>
+        <div class="chips" id="xC"></div>
+        <div class="row">
+          <label>Date<input id="xD" type="date" required /></label
+          ><label
+            >Repeat<select id="xR">
+              <option value="">Once</option>
+              <option value="monthly">Every month</option>
+            </select></label
+          >
+        </div>
+        <label>Note<input id="xN" placeholder="Optional" /></label>
+        <p class="err" id="xE"></p>
+        <div class="acts">
+          <button value="save" class="pri">Save</button
+          ><button value="cancel" formnovalidate>Cancel</button
+          ><button value="del" id="xDel" formnovalidate class="danger">
+            Delete
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="dc">
+      <form method="dialog">
+        <h3>Category</h3>
+        <label>Name<input id="cName" required /></label>
+        <div class="row">
+          <label>Icon (emoji)<input id="cIcon" maxlength="4" /></label
+          ><label
+            >Type<select id="cType">
+              <option value="exp">Expense</option>
+              <option value="inc">Income</option>
+            </select></label
+          >
+        </div>
+        <label id="cBL"
+          >Monthly budget<input
+            id="cBud"
+            type="number"
+            inputmode="decimal"
+            min="0"
+            step="any"
+            placeholder="No limit"
+        /></label>
+        <div class="acts">
+          <button value="save" class="pri">Save</button
+          ><button value="cancel" formnovalidate>Cancel</button
+          ><button value="del" id="cDel" formnovalidate class="danger">
+            Delete
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <script src="app.js"></script>
+  </body>
+</html>
