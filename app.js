@@ -20,7 +20,15 @@ let S = { cats: [], tx: [], cfg: {} };
 try {
   S = Object.assign(S, JSON.parse(localStorage.getItem(KEY) || "{}"));
 } catch (e) {}
-S.cfg = Object.assign({ theme: "auto", cur: "₹", budget: 0 }, S.cfg);
+S.cfg = Object.assign(
+  {
+    theme: "auto",
+    cur: "₹",
+    budget: 0,
+    lastTab: "home",
+  },
+  S.cfg,
+);
 if (!S.cats.length) {
   [
     ["Food", "🍔"],
@@ -60,7 +68,9 @@ if (!S.cats.length) {
     console.warn("Could not initialize Expense Tracker storage:", e);
   }
 }
-let tab = "home",
+let tab = ["home", "tx", "bud", "rep", "set"].includes(S.cfg.lastTab)
+    ? S.cfg.lastTab
+    : "home",
   off = 0,
   ft = "all",
   xt = "exp",
@@ -75,13 +85,72 @@ const save = () => {
     localStorage.setItem(KEY, JSON.stringify(S));
   } catch (e) {}
 };
+
+/* Add default income categories for existing and new users */
+function ensureIncomeCategories() {
+  const defaults = [
+    ["Freelance", "💻"],
+    ["Business income", "🏪"],
+    ["Investment returns", "📈"],
+    ["Rental income", "🏠"],
+    ["Interest income", "🏦"],
+    ["Gifts received", "🎁"],
+    ["Cashback", "💳"],
+  ];
+
+  let changed = false;
+
+  defaults.forEach(([name, icon], index) => {
+    const exists = S.cats.some(
+      (c) =>
+        c.type === "inc" && c.name.trim().toLowerCase() === name.toLowerCase(),
+    );
+
+    if (!exists) {
+      S.cats.push({
+        id: uid(),
+        name,
+        icon,
+        type: "inc",
+        budget: 0,
+        color: COLS[(index + 3) % COLS.length],
+      });
+
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    save();
+  }
+}
+
+ensureIncomeCategories();
 const snap = () => JSON.stringify({ c: S.cats, t: S.tx });
 const p2 = (n) => String(n).padStart(2, "0");
 const ymd = (d) =>
   d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
-const dt = (s) => new Date(s + "T00:00:00"),
-  fd = (d) =>
-    d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+const dt = (s) => new Date(s + "T00:00:00");
+function formatTransactionDateTime(t) {
+  const date = dt(t.date).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  const timestamp = Number(t.ts);
+  const time =
+    Number.isFinite(timestamp) && timestamp > 0
+      ? new Date(timestamp).toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        })
+      : "Time not recorded";
+
+  return `${date} · ${time}`;
+}
+fd = (d) => d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 const esc = (s) =>
   String(s).replace(
     /[&<>"]/g,
@@ -176,15 +245,109 @@ $("#undo").onclick = () => {
   }
   $("#toast").classList.remove("show");
 };
+
 function trow(t, i) {
-  const c = cat(t.cat),
-    li = $d.createElement("li"),
-    inc = t.type === "inc";
+  const c = cat(t.cat);
+  const li = $d.createElement("li");
+  const inc = t.type === "inc";
+
   li.style.setProperty("--i", Math.min(i, 8));
-  li.innerHTML = `<div class="ic" style="background:${col(c.color)}22">${esc(c.icon)}</div><div class="b"><div class="t">${esc(t.note || c.name)}</div><div class="m">${esc(c.name)} · ${fd(dt(t.date))}${t.rep ? " · 🔁 monthly" : ""}</div></div><div class="r"><b class="${inc ? "pos" : ""}">${inc ? "+" : "−"}${money(t.amt)}</b></div>`;
+
+  li.innerHTML = `
+    <div class="ic" style="background:${col(c.color)}22">
+      ${esc(c.icon)}
+    </div>
+
+    <div class="b">
+      <div class="t">${esc(t.note || c.name)}</div>
+      <div class="m">
+        ${esc(c.name)} · ${esc(formatTransactionDateTime(t))}
+        ${t.rep ? " · 🔁 monthly" : ""}
+      </div>
+    </div>
+
+    <div class="r">
+      <b class="${inc ? "pos" : ""}">
+        ${inc ? "+" : "−"}${money(t.amt)}
+      </b>
+    </div>
+  `;
+
   li.onclick = () => editX(t.id);
   return li;
 }
+
+function fillCategoryFilter(selector) {
+  const select = $(selector);
+  if (!select) return;
+
+  const previous = select.value;
+
+  select.innerHTML =
+    '<option value="all">All categories</option>' +
+    S.cats
+      .map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`)
+      .join("");
+
+  select.value = [...select.options].some((option) => option.value === previous)
+    ? previous
+    : "all";
+}
+
+function onElement(selector, event, handler) {
+  const element = $(selector);
+
+  if (!element) {
+    console.error(`Missing HTML element: ${selector}`);
+    return;
+  }
+
+  element.addEventListener(event, handler);
+}
+
+function matchesAmountRange(t, minSelector, maxSelector) {
+  const minValue = $(minSelector).value;
+  const maxValue = $(maxSelector).value;
+
+  if (minValue !== "" && t.amt < Number(minValue)) return false;
+  if (maxValue !== "" && t.amt > Number(maxValue)) return false;
+
+  return true;
+}
+
+function sortTransactions(list, sort) {
+  const rows = [...list];
+
+  switch (sort) {
+    case "amount-desc":
+      return rows.sort(
+        (a, b) =>
+          b.amt - a.amt ||
+          b.date.localeCompare(a.date) ||
+          (b.ts || 0) - (a.ts || 0),
+      );
+
+    case "amount-asc":
+      return rows.sort(
+        (a, b) =>
+          a.amt - b.amt ||
+          b.date.localeCompare(a.date) ||
+          (b.ts || 0) - (a.ts || 0),
+      );
+
+    case "oldest":
+      return rows.sort(
+        (a, b) => a.date.localeCompare(b.date) || (a.ts || 0) - (b.ts || 0),
+      );
+
+    case "newest":
+    default:
+      return rows.sort(
+        (a, b) => b.date.localeCompare(a.date) || (b.ts || 0) - (a.ts || 0),
+      );
+  }
+}
+
 const byCat = (l) => {
   const by = {};
   l.filter((t) => t.type === "exp").forEach(
@@ -215,42 +378,97 @@ function rHome() {
         })
         .join("")
     : '<p class="empty">No spending this month</p>';
+  fillCategoryFilter("#hCat");
+
   const ul = $("#hRec");
   ul.innerHTML = "";
-  const rec = [...l]
-    .sort((a, b) => b.date.localeCompare(a.date) || (b.ts || 0) - (a.ts || 0))
-    .slice(0, 5);
+
+  const homeType = $("#hType").value;
+  const homeCat = $("#hCat").value;
+  const homeSort = $("#hSort").value;
+
+  let rec = l.filter(
+    (t) =>
+      (homeType === "all" || t.type === homeType) &&
+      (homeCat === "all" || t.cat === homeCat) &&
+      matchesAmountRange(t, "#hMin", "#hMax"),
+  );
+
+  rec = sortTransactions(rec, homeSort).slice(0, 5);
+
   rec.forEach((t, i) => ul.append(trow(t, i)));
-  $("#hEmpty").hidden = !!l.length;
+
+  $("#hEmpty").hidden = l.length > 0;
+  $("#hFilterEmpty").hidden = rec.length > 0 || l.length === 0;
 }
 function rTx() {
+  fillCategoryFilter("#txCat");
+
   const q = $("#q").value.trim().toLowerCase();
-  const l = month()
-    .filter(
-      (t) =>
-        (ft === "all" || t.type === ft) &&
-        (!q || (t.note + " " + cat(t.cat).name).toLowerCase().includes(q)),
-    )
-    .sort((a, b) => b.date.localeCompare(a.date) || (b.ts || 0) - (a.ts || 0));
+  const type = $("#fT").value;
+  const category = $("#txCat").value;
+  const sort = $("#txSort").value;
+  const from = $("#txFrom").value;
+  const to = $("#txTo").value;
+
+  const source = from || to ? S.tx : month();
+
+  let rows = source.filter((t) => {
+    const categoryName = cat(t.cat).name;
+    const searchableText = `${t.note || ""} ${categoryName}`.toLowerCase();
+
+    if (type !== "all" && t.type !== type) return false;
+    if (category !== "all" && t.cat !== category) return false;
+    if (q && !searchableText.includes(q)) return false;
+    if (from && t.date < from) return false;
+    if (to && t.date > to) return false;
+
+    return matchesAmountRange(t, "#txMin", "#txMax");
+  });
+
+  rows = sortTransactions(rows, sort);
+
   const box = $("#txl");
   box.innerHTML = "";
-  const g = {};
-  l.forEach((t) => (g[t.date] = g[t.date] || []).push(t));
-  Object.keys(g)
-    .sort()
-    .reverse()
-    .forEach((d) => {
-      const e = sumT(g[d], "exp"),
-        h = $d.createElement("div");
-      h.className = "gh";
-      h.innerHTML = `<span>${fmtDay(d)}</span><b>${e ? "−" + money(e) : ""}</b>`;
-      box.append(h);
-      const ul = $d.createElement("ul");
-      ul.className = "list" + (anim ? "" : " still");
-      g[d].forEach((t, i) => ul.append(trow(t, i)));
-      box.append(ul);
+
+  if (sort === "amount-desc" || sort === "amount-asc") {
+    const ul = document.createElement("ul");
+    ul.className = "list";
+
+    rows.forEach((t, i) => ul.append(trow(t, i)));
+    box.append(ul);
+  } else {
+    const groups = {};
+
+    rows.forEach((t) => {
+      (groups[t.date] ||= []).push(t);
     });
-  $("#tEmpty").hidden = l.length > 0;
+
+    Object.keys(groups)
+      .sort((a, b) =>
+        sort === "oldest" ? a.localeCompare(b) : b.localeCompare(a),
+      )
+      .forEach((date) => {
+        const dayRows = groups[date];
+        const expenses = sumT(dayRows, "exp");
+        const heading = document.createElement("div");
+
+        heading.className = "gh";
+        heading.innerHTML =
+          `<span>${fmtDay(date)}</span>` +
+          `<b>${expenses ? "−" + money(expenses) : ""}</b>`;
+
+        box.append(heading);
+
+        const ul = document.createElement("ul");
+        ul.className = "list";
+
+        dayRows.forEach((t, i) => ul.append(trow(t, i)));
+        box.append(ul);
+      });
+  }
+
+  $("#tEmpty").hidden = rows.length > 0;
 }
 function crow(c, sp, i) {
   const li = $d.createElement("li");
@@ -260,25 +478,86 @@ function crow(c, sp, i) {
   return li;
 }
 function rBud() {
-  const l = month(),
-    B = +S.cfg.budget || 0,
-    E = sumT(l, "exp"),
-    by = byCat(l);
+  const l = month();
+  const B = +S.cfg.budget || 0;
+  const E = sumT(l, "exp");
+  const by = byCat(l);
+
   $("#oB").value = B || "";
+
   $("#oBar").innerHTML = B
-    ? `<div class="m2">${money(E)} of ${money(B)} · ${E > B ? money(E - B) + " over" : money(B - E) + " left"}</div>` +
-      pbar(E, B)
+    ? `<div class="m2">${money(E)} of ${money(B)} · ${
+        E > B ? money(E - B) + " over" : money(B - E) + " left"
+      }</div>` + pbar(E, B)
     : "";
-  const bl = $("#bl"),
-    il = $("#il");
+
+  const search = $("#budSearch").value.trim().toLowerCase();
+  const sort = $("#budSort").value;
+  const status = $("#budStatus").value;
+
+  const matchesSearch = (c) => c.name.toLowerCase().includes(search);
+
+  let expenseCategories = S.cats.filter((c) => {
+    if (c.type !== "exp" || !matchesSearch(c)) return false;
+
+    const spent = by[c.id] || 0;
+    const hasLimit = Number(c.budget) > 0;
+    const over = hasLimit && spent > c.budget;
+    const within = hasLimit && spent <= c.budget;
+
+    if (status === "over" && !over) return false;
+    if (status === "within" && !within) return false;
+    if (status === "limited" && !hasLimit) return false;
+    if (status === "unlimited" && hasLimit) return false;
+
+    return true;
+  });
+
+  expenseCategories.sort((a, b) => {
+    if (sort === "spend-asc") {
+      return (by[a.id] || 0) - (by[b.id] || 0);
+    }
+
+    if (sort === "name-asc") {
+      return a.name.localeCompare(b.name);
+    }
+
+    if (sort === "name-desc") {
+      return b.name.localeCompare(a.name);
+    }
+
+    return (by[b.id] || 0) - (by[a.id] || 0);
+  });
+
+  const incomeCategories = S.cats
+    .filter((c) => c.type === "inc" && matchesSearch(c))
+    .sort((a, b) =>
+      sort === "name-desc"
+        ? b.name.localeCompare(a.name)
+        : a.name.localeCompare(b.name),
+    );
+
+  const bl = $("#bl");
+  const il = $("#il");
+
   bl.innerHTML = "";
   il.innerHTML = "";
-  S.cats
-    .filter((c) => c.type === "exp")
-    .forEach((c, i) => bl.append(crow(c, by[c.id] || 0, i)));
-  S.cats
-    .filter((c) => c.type === "inc")
-    .forEach((c, i) => il.append(crow(c, 0, i)));
+
+  expenseCategories.forEach((c, i) => {
+    bl.append(crow(c, by[c.id] || 0, i));
+  });
+
+  incomeCategories.forEach((c, i) => {
+    il.append(crow(c, 0, i));
+  });
+
+  if (!expenseCategories.length) {
+    bl.innerHTML = '<li class="empty">No matching expense categories.</li>';
+  }
+
+  if (!incomeCategories.length) {
+    il.innerHTML = '<li class="empty">No matching income categories.</li>';
+  }
 }
 function rRep() {
   const l = month(),
@@ -293,7 +572,25 @@ function rRep() {
   $("#pS").textContent = money(E);
   $("#pA").textContent = money(E / days);
   $("#pV").textContent = money(I - E);
-  const rows = Object.entries(byCat(l)).sort((a, b) => b[1] - a[1]);
+  const reportSort = $("#repSort").value;
+
+  const rows = Object.entries(byCat(l));
+
+  rows.sort((a, b) => {
+    if (reportSort === "amount-asc") {
+      return a[1] - b[1];
+    }
+
+    if (reportSort === "name-asc") {
+      return cat(a[0]).name.localeCompare(cat(b[0]).name);
+    }
+
+    if (reportSort === "name-desc") {
+      return cat(b[0]).name.localeCompare(cat(a[0]).name);
+    }
+
+    return b[1] - a[1];
+  });
   let acc = 0;
   $("#dnT").textContent = money(E);
   $("#dn").style.background = rows.length
@@ -346,7 +643,6 @@ function rRep() {
     "</div>";
 }
 function rSet() {
-  $("#thSel").value = S.cfg.theme;
   $("#cur").value = S.cfg.cur;
 }
 const R = { home: rHome, tx: rTx, bud: rBud, rep: rRep, set: rSet };
@@ -380,8 +676,15 @@ function render() {
   R[tab]();
   anim = false;
 }
+
 function setTab(t) {
+  if (!["home", "tx", "bud", "rep", "set"].includes(t)) {
+    return;
+  }
   tab = t;
+  S.cfg.lastTab = tab;
+  save();
+
   anim = true;
   render();
   const s = $("#t-" + t);
@@ -403,12 +706,61 @@ $("#mNext").onclick = () => {
   anim = true;
   render();
 };
-$("#q").oninput = render;
-$("#fT").onchange = (e) => {
-  ft = e.target.value;
-  anim = true;
+// Search and advanced filter event listeners
+
+// Home filters
+onElement("#hType", "change", render);
+onElement("#hCat", "change", render);
+onElement("#hSort", "change", render);
+onElement("#hMin", "input", render);
+onElement("#hMax", "input", render);
+
+onElement("#hReset", "click", () => {
+  $("#hType").value = "all";
+  $("#hCat").value = "all";
+  $("#hSort").value = "newest";
+  $("#hMin").value = "";
+  $("#hMax").value = "";
   render();
-};
+});
+
+// Activity filters
+onElement("#q", "input", render);
+onElement("#fT", "change", render);
+onElement("#txCat", "change", render);
+onElement("#txSort", "change", render);
+onElement("#txFrom", "change", render);
+onElement("#txTo", "change", render);
+onElement("#txMin", "input", render);
+onElement("#txMax", "input", render);
+
+onElement("#txReset", "click", () => {
+  $("#q").value = "";
+  $("#fT").value = "all";
+  $("#txCat").value = "all";
+  $("#txSort").value = "newest";
+  $("#txFrom").value = "";
+  $("#txTo").value = "";
+  $("#txMin").value = "";
+  $("#txMax").value = "";
+  render();
+});
+
+// Budget filters
+onElement("#budSearch", "input", render);
+onElement("#budSort", "change", render);
+onElement("#budStatus", "change", render);
+
+onElement("#budReset", "click", () => {
+  $("#budSearch").value = "";
+  $("#budSort").value = "spend-desc";
+  $("#budStatus").value = "all";
+  render();
+});
+
+// Reports filters
+onElement("#repSort", "change", render);
+$("#repSort").addEventListener("change", render);
 $("#oB").onchange = (e) => {
   S.cfg.budget = +e.target.value || 0;
   save();
@@ -571,18 +923,81 @@ $("#dc").addEventListener("close", () => {
   render();
   if (r === "del") toast("Category deleted", sn);
 });
-// Settings
+
+/* Theme settings */
 const TH = ["auto", "light", "dark"];
-function theme() {
-  $d.documentElement.dataset.theme = TH.includes(S.cfg.theme)
-    ? S.cfg.theme
-    : "auto";
+
+function getTheme() {
+  return TH.includes(S.cfg.theme) ? S.cfg.theme : "auto";
 }
-$("#thSel").onchange = (e) => {
-  S.cfg.theme = e.target.value;
+
+function isDarkTheme(selected) {
+  return (
+    selected === "dark" ||
+    (selected === "auto" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches)
+  );
+}
+
+function theme() {
+  const selected = getTheme();
+  document.documentElement.dataset.theme = selected;
+
+  const icon = $("#themeIcon");
+  const button = $("#themeToggle");
+
+  const icons = {
+    auto: "🌓",
+    light: "☀️",
+    dark: "🌙",
+  };
+
+  if (icon && button) {
+    icon.textContent = icons[selected];
+
+    const label = `Theme: ${selected.charAt(0).toUpperCase()}${selected.slice(1)}`;
+
+    button.setAttribute("aria-label", label);
+    button.title = `${label} — click to change`;
+  }
+
+  const themeColor = document.querySelector('meta[name="theme-color"]');
+
+  if (themeColor) {
+    themeColor.content = isDarkTheme(selected) ? "#0b1020" : "#6366f1";
+  }
+}
+
+function cycleTheme() {
+  const current = getTheme();
+  const nextIndex = (TH.indexOf(current) + 1) % TH.length;
+
+  S.cfg.theme = TH[nextIndex];
+
   save();
   theme();
-};
+
+  const messages = {
+    auto: "Theme: Auto (follows your device)",
+    light: "Theme: Light",
+    dark: "Theme: Dark",
+  };
+
+  toast(messages[S.cfg.theme]);
+
+  const icon = $("#themeIcon");
+
+  if (icon) {
+    icon.classList.remove("theme-turn");
+    void icon.offsetWidth;
+    icon.classList.add("theme-turn");
+  }
+}
+
+$("#themeToggle").onclick = cycleTheme;
+
+$("#themeToggle").onclick = cycleTheme;
+
 $("#cur").oninput = (e) => {
   S.cfg.cur = e.target.value;
   save();
@@ -652,6 +1067,15 @@ $("#clrT").onclick = () => {
     toast("All transactions deleted", sn);
   }
 };
+
+const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
+
+systemTheme.addEventListener?.("change", () => {
+  if (getTheme() === "auto") {
+    theme();
+  }
+});
+
 theme();
 runRec();
 render();

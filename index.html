@@ -25,7 +25,18 @@
         <h1 id="ttl">Home</h1>
         <small id="dt"></small>
       </div>
-      <button id="install" hidden>⬇ Install</button>
+      <div class="header-actions">
+        <button
+          id="themeToggle"
+          type="button"
+          aria-label="Theme: Auto"
+          title="Theme: Auto"
+        >
+          <span id="themeIcon" aria-hidden="true">🌓</span>
+        </button>
+
+        <button id="install" hidden>⬇ Install</button>
+      </div>
     </header>
     <div id="offline" hidden>
       📡 You're offline, but your data is safe on this device.
@@ -48,19 +59,131 @@
         <h3>Top spending</h3>
         <div class="card" id="hTop"></div>
         <h3>Recent</h3>
+
+        <div class="filter-panel">
+          <h3 class="filter-title">Advanced filters</h3>
+
+          <div class="filter-grid">
+            <select id="hType" aria-label="Filter by transaction type">
+              <option value="all">All types</option>
+              <option value="exp">Expenses</option>
+              <option value="inc">Income</option>
+            </select>
+
+            <select id="hCat" aria-label="Filter by category">
+              <option value="all">All categories</option>
+            </select>
+
+            <select id="hSort" aria-label="Sort recent transactions">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="amount-desc">Amount: High to Low</option>
+              <option value="amount-asc">Amount: Low to High</option>
+            </select>
+
+            <input
+              id="hMin"
+              type="number"
+              min="0"
+              step="any"
+              placeholder="Min amount"
+              aria-label="Minimum amount"
+            />
+
+            <input
+              id="hMax"
+              type="number"
+              min="0"
+              step="any"
+              placeholder="Max amount"
+              aria-label="Maximum amount"
+            />
+
+            <button id="hReset" type="button" class="ghost">
+              Reset filters
+            </button>
+          </div>
+
+          <p class="filter-help">
+            Filters apply to transactions in the selected month.
+          </p>
+        </div>
+
         <ul id="hRec" class="list"></ul>
+
+        <p id="hFilterEmpty" class="empty" hidden>
+          No transactions match these filters.
+        </p>
+
         <p id="hEmpty" class="empty" hidden>
           No transactions yet. Tap ＋ to add your first one.
         </p>
       </section>
       <section id="t-tx" hidden>
         <div class="fl">
-          <input id="q" type="search" placeholder="🔍 Search" /><select id="fT">
+          <input id="q" type="search" placeholder="🔍 Search transactions" />
+
+          <select id="fT" aria-label="Filter by type">
             <option value="all">All</option>
             <option value="exp">Expenses</option>
             <option value="inc">Income</option>
           </select>
         </div>
+
+        <div class="filter-panel">
+          <h3 class="filter-title">Advanced filters</h3>
+
+          <div class="filter-grid">
+            <select id="txCat" aria-label="Filter by category">
+              <option value="all">All categories</option>
+            </select>
+
+            <select id="txSort" aria-label="Sort transactions">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="amount-desc">Amount: High to Low</option>
+              <option value="amount-asc">Amount: Low to High</option>
+            </select>
+
+            <label class="filter-field">
+              From date
+              <input id="txFrom" type="date" />
+            </label>
+
+            <label class="filter-field">
+              To date
+              <input id="txTo" type="date" />
+            </label>
+
+            <input
+              id="txMin"
+              type="number"
+              min="0"
+              step="any"
+              placeholder="Min amount"
+              aria-label="Minimum transaction amount"
+            />
+
+            <input
+              id="txMax"
+              type="number"
+              min="0"
+              step="any"
+              placeholder="Max amount"
+              aria-label="Maximum transaction amount"
+            />
+
+            <button id="txReset" type="button" class="ghost">
+              Reset filters
+            </button>
+          </div>
+
+          <p class="filter-help">
+            Select a date range to search across months. Without a date range,
+            transactions from the selected month are shown.
+          </p>
+        </div>
+
         <div id="txl"></div>
         <p id="tEmpty" class="empty" hidden>No transactions found.</p>
       </section>
@@ -77,6 +200,37 @@
           />
           <div id="oBar"></div>
         </div>
+        <div class="filter-panel">
+          <h3 class="filter-title">Filter categories</h3>
+
+          <div class="filter-grid">
+            <input
+              id="budSearch"
+              type="search"
+              placeholder="Search categories..."
+              aria-label="Search budget categories"
+            />
+
+            <select id="budSort" aria-label="Sort budget categories">
+              <option value="spend-desc">Spending: High to Low</option>
+              <option value="spend-asc">Spending: Low to High</option>
+              <option value="name-asc">Name: A to Z</option>
+              <option value="name-desc">Name: Z to A</option>
+            </select>
+
+            <select id="budStatus" aria-label="Filter budget status">
+              <option value="all">All budget statuses</option>
+              <option value="over">Over budget</option>
+              <option value="within">Within budget</option>
+              <option value="limited">Budget limit set</option>
+              <option value="unlimited">No budget limit</option>
+            </select>
+
+            <button id="budReset" type="button" class="ghost">
+              Reset filters
+            </button>
+          </div>
+        </div>
         <h3>Category budgets</h3>
         <ul id="bl" class="list"></ul>
         <button id="addC" class="pri wide">+ New category</button>
@@ -89,6 +243,16 @@
           ><span><b id="pV"></b>Saved</span>
         </div>
         <h3>Spending by category</h3>
+        <div class="filter-panel">
+          <div class="filter-grid">
+            <select id="repSort" aria-label="Sort spending categories">
+              <option value="amount-desc">Amount: High to Low</option>
+              <option value="amount-asc">Amount: Low to High</option>
+              <option value="name-asc">Category: A to Z</option>
+              <option value="name-desc">Category: Z to A</option>
+            </select>
+          </div>
+        </div>
         <div class="card">
           <div class="donut" id="dn">
             <div class="hole"><b id="dnT"></b><small>spent</small></div>
@@ -105,14 +269,6 @@
       </section>
       <section id="t-set" hidden>
         <div class="card">
-          <div class="set">
-            <span>Theme</span
-            ><select id="thSel">
-              <option value="auto">Auto</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </div>
           <div class="set">
             <span>Currency symbol</span><input id="cur" maxlength="3" />
           </div>
@@ -142,8 +298,8 @@
     <dialog id="dx">
       <form id="fx" method="dialog">
         <div class="seg" id="xT">
-          <button type="button" data-t="exp">Expense</button
-          ><button type="button" data-t="inc">Income</button>
+          <button type="button" data-t="exp">Expense – ખર્ચ</button>
+          <button type="button" data-t="inc">Income – આવક</button>
         </div>
         <label
           >Amount<input
@@ -157,6 +313,7 @@
         /></label>
         <label>Category</label>
         <div class="chips" id="xC"></div>
+        <label>Note<input id="xN" placeholder="Optional" /></label>
         <div class="row">
           <label>Date<input id="xD" type="date" required /></label
           ><label
@@ -166,7 +323,6 @@
             </select></label
           >
         </div>
-        <label>Note<input id="xN" placeholder="Optional" /></label>
         <p class="err" id="xE"></p>
         <div class="acts">
           <button value="save" class="pri">Save</button
