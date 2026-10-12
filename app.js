@@ -873,17 +873,18 @@ $("#dx").addEventListener("close", () => {
   toast(msg, r === "del" ? sn : null);
 });
 // Category editor
-function editC(id) {
+function editC(id, defaultType = "exp") {
   ce = id
     ? S.cats.find((c) => c.id === id)
     : {
         id: "",
         name: "",
         icon: "📦",
-        type: "exp",
+        type: defaultType,
         budget: 0,
         color: COLS[S.cats.length % COLS.length],
       };
+  if (!ce) return;
   $("#cName").value = ce.name;
   $("#cIcon").value = ce.icon;
   $("#cType").value = ce.type;
@@ -897,7 +898,10 @@ function editC(id) {
   $("#dc").returnValue = "";
   $("#dc").showModal();
 }
-$("#addC").onclick = () => editC("");
+$("#addC").onclick = () => editC("", "exp");
+$("#addCategoryFromTx").onclick = () => {
+  editC("", xt);
+};
 $("#cType").onchange = (e) => ($("#cBL").hidden = e.target.value !== "exp");
 $("#dc").addEventListener("close", () => {
   const r = $("#dc").returnValue,
@@ -919,6 +923,10 @@ $("#dc").addEventListener("close", () => {
     }
   } else if (r === "del") S.cats = S.cats.filter((x) => x !== c);
   else return;
+  if (r === "save" && $("#dx").open && c.type === xt) {
+    xc = c.id;
+    chips();
+  }
   save();
   render();
   if (r === "del") toast("Category deleted", sn);

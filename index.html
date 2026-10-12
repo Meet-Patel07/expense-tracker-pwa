@@ -231,9 +231,13 @@
             </button>
           </div>
         </div>
-        <h3>Category budgets</h3>
+        <div class="category-section-heading">
+          <h3>Category budgets</h3>
+          <button id="addC" type="button" class="pri category-add-btn">
+            + Add Category
+          </button>
+        </div>
         <ul id="bl" class="list"></ul>
-        <button id="addC" class="pri wide">+ New category</button>
         <h3>Income categories</h3>
         <ul id="il" class="list"></ul>
       </section>
@@ -311,7 +315,12 @@
             required
             placeholder="0"
         /></label>
-        <label>Category</label>
+        <div class="category-label-row">
+          <label for="xC">Category</label>
+          <button id="addCategoryFromTx" type="button" class="text-link">
+            + Add New Category
+          </button>
+        </div>
         <div class="chips" id="xC"></div>
         <label>Note<input id="xN" placeholder="Optional" /></label>
         <div class="row">
