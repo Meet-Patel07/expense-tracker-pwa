@@ -110,7 +110,6 @@ header button {
   outline-offset: 3px;
 }
 
-/* Theme toggle icon animation */
 #themeIcon {
   display: inline-block;
   transform-origin: center;
@@ -666,7 +665,6 @@ dialog label {
     transition: none !important;
   }
 }
-/* Expense tracker additions */
 main {
   padding-bottom: calc(140px + env(safe-area-inset-bottom));
 }
@@ -822,7 +820,6 @@ main {
   }
 }
 
-/* Smooth theme transition across the entire app */
 body,
 main,
 .card,
@@ -845,23 +842,19 @@ dialog,
     box-shadow 0.3s ease;
 }
 
-/* Keep the existing purple gradient header */
 header {
   background: linear-gradient(135deg, var(--a), var(--a2));
   color: #fff;
 }
 
-/* Light theme */
 :root {
   color-scheme: light;
 }
 
-/* Dark theme */
 :root[data-theme="dark"] {
   color-scheme: dark;
 }
 
-/* Auto follows the device preference */
 @media (prefers-color-scheme: dark) {
   :root[data-theme="auto"] {
     color-scheme: dark;
@@ -874,7 +867,6 @@ header {
   }
 }
 
-/* Respect accessibility preferences */
 @media (prefers-reduced-motion: reduce) {
   body,
   main,
@@ -899,7 +891,6 @@ header {
   }
 }
 
-/* Clear active tab indicator */
 #nav button {
   position: relative;
   border-radius: 12px;
@@ -929,7 +920,6 @@ header {
   filter: drop-shadow(0 2px 5px rgba(99, 102, 241, 0.3));
 }
 
-/* Stronger contrast in dark mode */
 :root[data-theme="dark"] #nav button.on {
   color: #a5b4fc;
   background: rgba(129, 140, 248, 0.16);
@@ -939,7 +929,6 @@ header {
   background: #a5b4fc;
 }
 
-/* Auto mode when the device uses dark theme */
 @media (prefers-color-scheme: dark) {
   :root[data-theme="auto"] #nav button.on {
     color: #a5b4fc;
@@ -951,7 +940,6 @@ header {
   }
 }
 
-/* Advanced filters */
 .filter-panel {
   margin: 10px 0 16px;
   padding: 12px;
@@ -1089,5 +1077,161 @@ header {
 
   .text-link {
     font-size: 0.78rem;
+  }
+}
+
+.reset-filter-btn {
+  width: 100%;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 10px 16px;
+
+  border: 1px solid rgba(99, 102, 241, 0.24);
+  border-radius: 13px;
+
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.09),
+    rgba(139, 92, 246, 0.13)
+  );
+
+  color: var(--a);
+  font-size: 0.9rem;
+  font-weight: 650;
+  letter-spacing: 0.1px;
+
+  box-shadow: 0 3px 10px rgba(99, 102, 241, 0.05);
+  transition:
+    background 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    transform 0.22s ease;
+}
+
+.reset-filter-btn .reset-icon {
+  display: inline-block;
+  font-size: 1.25rem;
+  line-height: 1;
+  transition: transform 0.35s ease;
+}
+
+@media (hover: hover) {
+  .reset-filter-btn:hover {
+    background: linear-gradient(135deg, var(--a), var(--a2));
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 7px 18px rgba(99, 102, 241, 0.24);
+    transform: translateY(-2px);
+  }
+
+  .reset-filter-btn:hover .reset-icon {
+    transform: rotate(-180deg);
+  }
+}
+
+.reset-filter-btn:active {
+  transform: scale(0.97);
+}
+
+.reset-filter-btn:focus-visible {
+  outline: 3px solid rgba(99, 102, 241, 0.3);
+  outline-offset: 3px;
+}
+
+:root[data-theme="dark"] .reset-filter-btn {
+  background: rgba(129, 140, 248, 0.12);
+  border-color: rgba(165, 180, 252, 0.25);
+  color: #c7d2fe;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] .reset-filter-btn {
+    background: rgba(129, 140, 248, 0.12);
+    border-color: rgba(165, 180, 252, 0.25);
+    color: #c7d2fe;
+  }
+}
+
+.card,
+.filter-panel,
+.stats span,
+.list li,
+.category-add-btn,
+#fab,
+#nav button,
+input,
+select {
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .card:hover,
+  .filter-panel:hover {
+    border-color: rgba(99, 102, 241, 0.22);
+    box-shadow: 0 9px 28px rgba(15, 23, 42, 0.09);
+  }
+
+  .list li:hover {
+    border-color: rgba(99, 102, 241, 0.38);
+    box-shadow: 0 7px 20px rgba(99, 102, 241, 0.09);
+    transform: translateY(-2px);
+  }
+
+  .category-add-btn:hover {
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.25);
+  }
+
+  #fab:hover {
+    transform: translateY(-4px) scale(1.04);
+    box-shadow: 0 12px 30px rgba(99, 102, 241, 0.42);
+  }
+}
+
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.25);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .filter-panel {
+    animation: filterPanelIn 0.32s ease both;
+  }
+
+  @keyframes filterPanelIn {
+    from {
+      opacity: 0.75;
+      transform: translateY(7px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reset-filter-btn,
+  .reset-filter-btn .reset-icon,
+  .card,
+  .filter-panel,
+  .stats span,
+  .list li,
+  .category-add-btn,
+  #fab,
+  #nav button,
+  input,
+  select {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
   }
 }

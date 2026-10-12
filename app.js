@@ -1049,7 +1049,6 @@ $("#xPdf").onclick = () => {
 
   const balance = income - expenses;
 
-  // Use INR for reliable rendering with standard PDF fonts.
   const formatMoney = (amount) => {
     const number = Math.abs(Number(amount) || 0).toLocaleString("en-IN", {
       minimumFractionDigits: 2,
@@ -1072,7 +1071,6 @@ $("#xPdf").onclick = () => {
     red: [220, 38, 38],
   };
 
-  // Table column positions and widths.
   const columns = [
     { title: "DATE", x: 14, width: 26 },
     { title: "TIME", x: 41, width: 23 },
@@ -1246,7 +1244,6 @@ $("#xPdf").onclick = () => {
       y = drawNextPageHeader();
     }
 
-    // Alternating row backgrounds improve readability.
     if (index % 2 === 0) {
       pdf.setFillColor(...colors.light);
       pdf.rect(margin, y, usableWidth, rowHeight, "F");
@@ -1268,10 +1265,14 @@ $("#xPdf").onclick = () => {
     pdf.text(categoryLines, columns[3].x + 2, textY);
 
     pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(8);
     pdf.setTextColor(...(isIncome ? colors.green : colors.red));
 
-    pdf.text(amountText, columns[4].x + columns[4].width - 2, textY, {
-      align: "right",
+    const amountColumn = columns[4];
+    const amountCenterX = amountColumn.x + amountColumn.width / 2;
+
+    pdf.text(amountText, amountCenterX, textY, {
+      align: "center",
     });
 
     pdf.setFont("helvetica", "normal");
