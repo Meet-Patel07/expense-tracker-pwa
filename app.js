@@ -1016,31 +1016,300 @@ function dl(name, text, type) {
   a.download = name;
   a.click();
 }
-$("#xCsv").onclick = () => {
-  const q = (v) => {
-    v = String(v);
-    if (/^[=+\-@]/.test(v)) v = "'" + v;
-    return '"' + v.replace(/"/g, '""') + '"';
-  };
-  const rows = [["Date", "Type", "Category", "Amount", "Note", "Repeat"]];
-  [...S.tx]
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .forEach((t) =>
-      rows.push([
-        t.date,
-        t.type === "inc" ? "Income" : "Expense",
-        cat(t.cat).name,
-        t.amt.toFixed(2),
-        t.note || "",
-        t.rep || "",
-      ]),
-    );
-  dl(
-    "transactions-" + ymd(new Date()) + ".csv",
-    rows.map((r) => r.map(q).join(",")).join("\n"),
-    "text/csv",
+
+$("#xPdf").onclick = () => {
+  if (!window.jspdf?.jsPDF) {
+    alert("PDF library could not load. Check your internet connection.");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({
+    orientation: "landscape",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const transactions = [...S.tx].sort(
+    (a, b) => b.date.localeCompare(a.date) || (b.ts || 0) - (a.ts || 0),
   );
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 14;
+  const usableWidth = pageWidth - margin * 2;
+
+  const income = transactions
+    .filter((t) => t.type === "inc")
+    .reduce((sum, t) => sum + Number(t.amt || 0), 0);
+
+  const expenses = transactions
+    .filter((t) => t.type === "exp")
+    .reduce((sum, t) => sum + Number(t.amt || 0), 0);
+
+  const balance = income - expenses;
+
+  // Use INR for reliable rendering with standard PDF fonts.
+  const formatMoney = (amount) => {
+    const number = Math.abs(Number(amount) || 0).toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+    const currency = S.cfg.cur === "₹" ? "INR " : `${S.cfg.cur || ""}`;
+
+    return `${currency}${number}`;
+  };
+
+  const colors = {
+    primary: [99, 102, 241],
+    dark: [30, 41, 59],
+    muted: [100, 116, 139],
+    line: [226, 232, 240],
+    light: [248, 250, 252],
+    white: [255, 255, 255],
+    green: [5, 150, 105],
+    red: [220, 38, 38],
+  };
+
+  // Table column positions and widths.
+  const columns = [
+    { title: "DATE", x: 14, width: 26 },
+    { title: "TIME", x: 41, width: 23 },
+    { title: "TYPE", x: 65, width: 23 },
+    { title: "CATEGORY", x: 89, width: 40 },
+    { title: "AMOUNT", x: 130, width: 38 },
+    { title: "NOTE", x: 169, width: 114 },
+  ];
+
+  const drawTableHeader = (y) => {
+    pdf.setFillColor(...colors.primary);
+    pdf.roundedRect(margin, y, usableWidth, 9, 1.5, 1.5, "F");
+
+    pdf.setTextColor(...colors.white);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(8);
+
+    columns.forEach((column) => {
+      pdf.text(column.title, column.x + 2, y + 5.8);
+    });
+
+    pdf.setTextColor(...colors.dark);
+    pdf.setFont("helvetica", "normal");
+
+    return y + 9;
+  };
+
+  const drawSummaryCard = (x, y, width, title, value, valueColor) => {
+    pdf.setFillColor(...colors.light);
+    pdf.setDrawColor(...colors.line);
+    pdf.roundedRect(x, y, width, 20, 2, 2, "FD");
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.setTextColor(...colors.muted);
+    pdf.text(title, x + 4, y + 6);
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(10);
+    pdf.setTextColor(...valueColor);
+
+    const fittedValue = pdf.splitTextToSize(value, width - 8)[0] || "";
+    pdf.text(fittedValue, x + 4, y + 14);
+  };
+
+  const drawFirstPageHeader = () => {
+    pdf.setFillColor(...colors.primary);
+    pdf.rect(0, 0, pageWidth, 34, "F");
+
+    pdf.setTextColor(...colors.white);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(19);
+    pdf.text("Expense Tracker", margin, 14);
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10);
+    pdf.text("Financial Report", margin, 21);
+
+    pdf.setFontSize(8);
+    pdf.text(
+      `Generated: ${new Date().toLocaleString("en-IN")}`,
+      pageWidth - margin,
+      14,
+      { align: "right" },
+    );
+
+    pdf.text(`Transactions: ${transactions.length}`, pageWidth - margin, 21, {
+      align: "right",
+    });
+
+    pdf.setTextColor(...colors.dark);
+
+    const gap = 6;
+    const cardWidth = (usableWidth - gap * 2) / 3;
+    const cardY = 41;
+
+    drawSummaryCard(
+      margin,
+      cardY,
+      cardWidth,
+      "TOTAL INCOME",
+      formatMoney(income),
+      colors.green,
+    );
+
+    drawSummaryCard(
+      margin + cardWidth + gap,
+      cardY,
+      cardWidth,
+      "TOTAL EXPENSES",
+      formatMoney(expenses),
+      colors.red,
+    );
+
+    drawSummaryCard(
+      margin + (cardWidth + gap) * 2,
+      cardY,
+      cardWidth,
+      "NET BALANCE",
+      `${balance < 0 ? "- " : ""}${formatMoney(balance)}`,
+      balance < 0 ? colors.red : colors.primary,
+    );
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(10);
+    pdf.setTextColor(...colors.dark);
+    pdf.text("Transaction Details", margin, 70);
+
+    return drawTableHeader(74);
+  };
+
+  const drawNextPageHeader = () => {
+    pdf.setTextColor(...colors.dark);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(13);
+    pdf.text("Expense Tracker", margin, 15);
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.setTextColor(...colors.muted);
+    pdf.text("Transaction Details — Continued", margin, 21);
+
+    pdf.setDrawColor(...colors.line);
+    pdf.line(margin, 25, pageWidth - margin, 25);
+
+    return drawTableHeader(30);
+  };
+
+  let y = drawFirstPageHeader();
+
+  if (transactions.length === 0) {
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10);
+    pdf.setTextColor(...colors.muted);
+    pdf.text("No transactions available for this report.", margin + 2, y + 12);
+  }
+
+  transactions.forEach((transaction, index) => {
+    const category = cat(transaction.cat);
+    const date = dt(transaction.date).toLocaleDateString("en-GB");
+
+    const timestamp = Number(transaction.ts);
+    const time =
+      Number.isFinite(timestamp) && timestamp > 0
+        ? new Date(timestamp).toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          })
+        : "Not recorded";
+
+    const isIncome = transaction.type === "inc";
+
+    const amountText = `${isIncome ? "+ " : "- "}${formatMoney(transaction.amt)}`;
+
+    const note = String(transaction.note || "-");
+    const categoryName = String(category.name || "Uncategorized");
+
+    const noteLines = pdf.splitTextToSize(note, columns[5].width - 5);
+    const categoryLines = pdf.splitTextToSize(
+      categoryName,
+      columns[3].width - 5,
+    );
+
+    const lineCount = Math.max(noteLines.length, categoryLines.length, 1);
+
+    const rowHeight = Math.max(9, lineCount * 4 + 5);
+
+    if (y + rowHeight > pageHeight - 18) {
+      pdf.addPage();
+      y = drawNextPageHeader();
+    }
+
+    // Alternating row backgrounds improve readability.
+    if (index % 2 === 0) {
+      pdf.setFillColor(...colors.light);
+      pdf.rect(margin, y, usableWidth, rowHeight, "F");
+    }
+
+    pdf.setDrawColor(...colors.line);
+    pdf.line(margin, y + rowHeight, pageWidth - margin, y + rowHeight);
+
+    const textY = y + 5.5;
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.setTextColor(...colors.dark);
+
+    pdf.text(date, columns[0].x + 2, textY);
+    pdf.text(time, columns[1].x + 2, textY);
+    pdf.text(isIncome ? "Income" : "Expense", columns[2].x + 2, textY);
+
+    pdf.text(categoryLines, columns[3].x + 2, textY);
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(...(isIncome ? colors.green : colors.red));
+
+    pdf.text(amountText, columns[4].x + columns[4].width - 2, textY, {
+      align: "right",
+    });
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(...colors.dark);
+    pdf.text(noteLines, columns[5].x + 2, textY);
+
+    y += rowHeight;
+  });
+
+  // Add consistent footer and page numbers to every page.
+  const totalPages = pdf.internal.getNumberOfPages();
+
+  for (let page = 1; page <= totalPages; page++) {
+    pdf.setPage(page);
+
+    pdf.setDrawColor(...colors.line);
+    pdf.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.setTextColor(...colors.muted);
+
+    pdf.text("Expense Tracker | Financial Report", margin, pageHeight - 7);
+
+    pdf.text(
+      `Page ${page} of ${totalPages}`,
+      pageWidth - margin,
+      pageHeight - 7,
+      { align: "right" },
+    );
+  }
+
+  const fileName =
+    "expense-report-" + new Date().toISOString().slice(0, 10) + ".pdf";
+
+  pdf.save(fileName);
 };
+
 $("#xBk").onclick = () =>
   dl(
     "expense-backup-" + ymd(new Date()) + ".json",
